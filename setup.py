@@ -17,10 +17,11 @@ setup(name = "git_origin",
       license = "GPL v2",
       packages = find_packages("src"),
       package_dir = {"": "src"},
-      #namespace_packages = ["bitbake"],
+      namespace_packages = ["git_origin"],
       include_package_data = True,
       zip_safe = False,
       install_requires = [
-        "GitPython",
+          "setuptools",
+          "GitPython",
       ],
 )
