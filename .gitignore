@@ -1,0 +1,14 @@
+*.pyc
+*.egg-info/
+/setuptools_git-*
+/.installed.cfg
+/parts/
+/develop-eggs/
+/bin/
+/lib/
+/build/
+/dist/
+/eggs/
+/downloads/
+
+/.bitbake-project
