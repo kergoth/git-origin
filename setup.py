@@ -24,4 +24,9 @@ setup(name = "git_origin",
           "setuptools",
           "GitPython",
       ],
+      entry_points = {
+          "console_scripts": [
+              "git-origin = git_origin.cmd:origin",
+          ],
+      },
 )
