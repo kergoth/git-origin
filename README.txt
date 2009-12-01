@@ -11,14 +11,6 @@ Note that one commit can have multiple origins, and multiple commits can have
 the same origin.  This is to facilitate the cases where you split a commit, or
 squash multiple commits, when pulling the changes over.
 
-TODO:
-- GitPython:
-  - Add mechanisms/classes to manipulate the GIT_INDEX_FILE and GIT_WORK_TREE
-    being used for the git commands.
-  - Add mechanisms/classes to facilitate programmatically taking a tree,
-    altering it, reading it into the index, generating a commit from that
-    index, and updating a ref to point at the new commit.
-
 Tools:
 - git-origin: Add/set/remove/list origins on a commit.
 - git-origin-blacklist: Mark a commit as blacklisted--will be shown as
@@ -36,3 +28,27 @@ Tools:
                    or more.
 - git-origins-from-patch-id: Populates origin information using patch-id
                              information to identify identical commits.
+
+
+TODO:
+- GitPython:
+  - Add the ability to generate a blob object given a file-like object, by
+    opening a pipe to hash-object -w and writing the data to it.
+  - Add the ability to interact with a git index file, including adding the
+    above newly created objects at appropriate paths in the index, as well as
+    the ability to check out *this* index file to a specified working tree.
+  - Add the ability to create a tree object from the index object, writing it
+    into the git object database.
+  - Add the ability to create a commit object from a tree object, also writing
+    it into the git object database.
+
+Miscellaneous Notes:
+Process for creating a commit that changes a file:
+- read-tree: read a tree-ish into the index
+- checkout-index: populate the working copy from the index
+
+- update-index: update the index with modifications from the working copy
+
+- write-tree: write a tree from the index
+- commit-tree: create a commit from a tree
+- update-ref: update ref to point at the new commit
