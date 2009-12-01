@@ -12,7 +12,12 @@ the same origin.  This is to facilitate the cases where you split a commit, or
 squash multiple commits, when pulling the changes over.
 
 TODO:
-- git-origin:
+- GitPython:
+  - Add mechanisms/classes to manipulate the GIT_INDEX_FILE and GIT_WORK_TREE
+    being used for the git commands.
+  - Add mechanisms/classes to facilitate programmatically taking a tree,
+    altering it, reading it into the index, generating a commit from that
+    index, and updating a ref to point at the new commit.
 
 Tools:
 - git-origin: Add/set/remove/list origins on a commit.
