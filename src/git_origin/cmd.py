@@ -4,6 +4,7 @@ from sys import argv
 from os import makedirs, environ
 from os.path import join
 from errno import EEXIST
+from subprocess import call
 from git.repo import Repo
 from git.cmd import Git
 
@@ -32,15 +33,18 @@ def _add_origin(origin, commit):
         if e.errno != EEXIST:
             raise
 
-    #git = Git(origin_wd)
-    #git.execute(["git", "--work-tree=%s" % origin_wd, "checkout", "-f", notes_ref])
-    #(
-    #    export GIT_INDEX_FILE="$indexfile"
-    #    export GIT_WORK_TREE="$codir"
-    #    mkdir -p $GIT_WORK_TREE && \
-    #    git read-tree $GIT_NOTES_REF 2>/dev/null && \
-    #    git checkout-index -af
-    #)
+    originenv = {
+        "GIT_INDEX_FILE": join(commit.repo.path, "origins-index"),
+        "GIT_WORK_TREE": origin_wd
+    }
+
+    ret = call(["git", "read-tree", notes_ref], env=originenv)
+    if ret != 0:
+        raise Exception("Unable to check out origins.")
+
+    ret = call(["git", "checkout-index", "-af"], env=originenv)
+    if ret != 0:
+        raise Exception("Unable to check out origins.")
 
 # Commands
 def origin():
