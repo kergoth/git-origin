@@ -31,16 +31,19 @@ Tools:
 
 
 TODO:
-- GitPython:
-  - Add the ability to generate a blob object given a file-like object, by
-    opening a pipe to hash-object -w and writing the data to it.
-  - Add the ability to interact with a git index file, including adding the
-    above newly created objects at appropriate paths in the index, as well as
-    the ability to check out *this* index file to a specified working tree.
-  - Add the ability to create a tree object from the index object, writing it
-    into the git object database.
-  - Add the ability to create a commit object from a tree object, also writing
-    it into the git object database.
+- Create a function which takes a Repo object and a file-like object with the
+  blob data, which writes a new git object with that data into the git object
+  database and returns a Blob object for it.
+- Add a function which takes an index object and creates a Tree object from
+  it, by running write-tree and creating a Tree from the new git object.
+- Add a function which takes a Tree and creates a git commit from it,
+  returning a Commit for that git object.
+- Add a convenience function for a Repo which runs git-commit on its work tree
+  and returns the new Commit object, as well as adding it to the Repo.
+- Add a convenience class representing a git Index.  It should provide
+  convenience methods for common tasks like updating the contents of the index
+  and checking the index out into a work tree. The repo should hold an
+  instance of this class for the default index.
 
 Miscellaneous Notes:
 Process for creating a commit that changes a file:
