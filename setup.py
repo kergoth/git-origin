@@ -5,7 +5,7 @@ version = 0.1
 short_description = "Git cherry pick tracking."
 long_description = open(join(dirname(__file__), "README.txt"), "r").read()
 
-setup(name = "git_origin",
+setup(name = "git-origin",
       version = version,
       description = short_description,
       long_description = long_description,
