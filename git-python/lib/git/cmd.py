@@ -13,7 +13,7 @@ from errors import GitCommandError
 # Enables debugging of GitPython's git commands
 GIT_PYTHON_TRACE = os.environ.get("GIT_PYTHON_TRACE", False)
 
-execute_kwargs = ('istream', 'with_keep_cwd', 'with_extended_output',
+execute_kwargs = ('input', 'istream', 'with_keep_cwd', 'with_extended_output',
                   'with_exceptions', 'with_raw_output')
 
 extra = {}
@@ -66,11 +66,12 @@ class Git(object):
         return self.git_dir
 
     def execute(self, command,
-                istream=None,
+                istream=subprocess.PIPE,
                 with_keep_cwd=False,
                 with_extended_output=False,
                 with_exceptions=True,
                 with_raw_output=False,
+                input=None,
                 ):
         """
         Handles executing the command on the shell and consumes and returns
@@ -83,6 +84,9 @@ class Git(object):
 
         ``istream``
             Standard input filehandle passed to subprocess.Popen.
+
+        ``input``
+            String to be passed to stdin.
 
         ``with_keep_cwd``
             Whether to use the current working directory from os.getcwd().
@@ -129,13 +133,8 @@ class Git(object):
                                 )
 
         # Wait for the process to return
-        try:
-            stdout_value = proc.stdout.read()
-            stderr_value = proc.stderr.read()
-            status = proc.wait()
-        finally:
-            proc.stdout.close()
-            proc.stderr.close()
+        (stdout_value, stderr_value) = proc.communicate(input)
+        status = proc.returncode
 
         # Strip off trailing whitespace by default
         if not with_raw_output:
