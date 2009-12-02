@@ -1,0 +1,7 @@
+*.py[co]
+*.swp
+*~
+/lib/GitPython.egg-info
+/build
+/dist
+/doc/_build
