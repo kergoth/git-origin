@@ -39,19 +39,19 @@ Tools
 
 TODO
 ----
-- Create a function which takes a Repo object and a file-like object with the
-  blob data, which writes a new git object with that data into the git object
-  database and returns a Blob object for it.
-- Add a function which takes an index object and creates a Tree object from
-  it, by running write-tree and creating a Tree from the new git object.
+- :git-python: Alter cmd.Git class to accept both work tree and index file,
+               and to obey both paths via the environment.
+- Fix the Index class to use the above functionality to ensure it obeys the
+  path to that particular index.
+- Add checkout method to the Index class to make calls to checkout-index
+  more convenient, operating against this specific index into a specified
+  work tree.
+- Add a function which takes an Index and uses write-tree to generate a
+  tree object for it, returning the new Tree.
 - Add a function which takes a Tree and creates a git commit from it,
-  returning a Commit for that git object.
-- Add a convenience function for a Repo which runs git-commit on its work tree
-  and returns the new Commit object, as well as adding it to the Repo.
-- Add a convenience class representing a git Index.  It should provide
-  convenience methods for common tasks like updating the contents of the index
-  and checking the index out into a work tree. The repo should hold an
-  instance of this class for the default index.
+  returning the new Commit.
+- Add a function which takes a Repo and does a commit using its index and
+  work tree and returns the new Commit object.
 
 Miscellaneous Notes
 -------------------

@@ -2,7 +2,7 @@
 
 from sys import argv
 from os import makedirs, environ
-from os.path import join
+from os.path import join, isabs
 from errno import EEXIST
 from subprocess import call
 from git.repo import Repo
@@ -11,6 +11,10 @@ from git.cmd import Git
 
 notes_ref = "refs/notes/origins"
 
+
+class Messenger:
+    def __init__(self, **kwargs):
+        self.__dict__ = kwargs
 
 def _commit(repo, ref="HEAD"):
     id = repo.git.rev_parse(ref, verify=True).strip()
@@ -46,6 +50,31 @@ def _add_origin(origin, commit):
     if ret != 0:
         raise Exception("Unable to check out origins.")
 
+def new_blob(repo, data, path=None):
+    args = dict(stdin=True, t="blob", w=True, input=data)
+    if path:
+        args["path"] = path
+    hash = repo.git.hash_object(**args)
+    return repo.blob(hash)
+
+class Index(object):
+    def __init__(self, repo, path=None):
+        if path is None:
+            path = join(repo.wd, "index")
+        self.path = path
+        self.repo = repo
+
+    # FIXME: Make update operate against the self.path index file.
+    def update(self, path, cacheinfo=None, **kwargs):
+        if isabs(path):
+            path = path[1:]
+
+        if cacheinfo:
+            self.repo.git.update_index("--cacheinfo", cacheinfo.mode,
+                                       cacheinfo.blob.id, path, **kwargs)
+        else:
+            self.repo.git.update_index(path, **kwargs)
+
 # Commands
 def origin():
     """Add the supplied commit-ish as an origin on HEAD (or the second supplied commit-ish)."""
@@ -62,4 +91,8 @@ def origin():
             print("Origins for %s:" % commit)
             for origin in origins:
                 print("    %s" % origin)
-        _add_origin(commit, commit)
+        #_add_origin(commit, commit)
+        #blob = new_blob(repo, "Foo\nBar\nBaz", "/foo")
+        #cacheinfo = Messenger(mode="0755", blob=blob)
+        #index = Index(repo)
+        #index.update("/foo", cacheinfo, add=True)
