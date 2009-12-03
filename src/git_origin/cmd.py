@@ -5,12 +5,17 @@ from os import makedirs, environ
 from os.path import join, isabs
 from errno import EEXIST
 from subprocess import call
+from sys import exit, stderr
 from git.repo import Repo
 from git.cmd import Git
 from git.errors import GitCommandError
 
 
 notes_ref = "refs/notes/origins"
+usage = """git-origin ORIGIN [COMMIT]
+
+ORIGIN - Commit to mark as an origin.
+COMMIT - Commit which has ORIGIN as an origin (default=HEAD)"""
 
 
 class Messenger:
@@ -105,7 +110,7 @@ def origin():
         del environ["GIT_NOTES_REF"]
 
     repo = Repo()
-    if len(argv) > 1:
+    if 2 <= len(argv) <= 3:
         origin = _commit(repo, argv[1])
         try:
             commit = _commit(repo, argv[2])
@@ -118,6 +123,7 @@ def origin():
             else:
                 print("Origin already set.")
         except GitCommandError, exc:
-            raise SystemExit("Failed to add origin when executing %s:\n%s" % (exc.command, exc.stderr))
+            exit("Failed to add origin when executing %s:\n%s" % (exc.command, exc.stderr))
     else:
-        checkout_origins(repo)
+        print >>stderr, usage
+        exit(2)
