@@ -137,11 +137,11 @@ def origin():
 
     repo = Repo()
     if len(argv) > 1:
-        commit = _commit(argv[1])
+        origin = _commit(argv[1])
         try:
-            origin = _commit(repo, argv[2])
+            commit = _commit(repo, argv[2])
         except IndexError:
-            origin = _commit(repo)
+            commit = _commit(repo)
 
         if add_origin(repo, commit, origin):
             print("Added origin %s to commit %s" % (origin.id, commit.id))
