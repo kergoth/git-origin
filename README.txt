@@ -39,19 +39,15 @@ Tools
 
 TODO
 ----
-- :git-python: Alter cmd.Git class to accept both work tree and index file,
-               and to obey both paths via the environment.
-- Fix the Index class to use the above functionality to ensure it obeys the
-  path to that particular index.
 - Add checkout method to the Index class to make calls to checkout-index
-  more convenient, operating against this specific index into a specified
-  work tree.
-- Add a function which takes an Index and uses write-tree to generate a
-  tree object for it, returning the new Tree.
-- Add a function which takes a Tree and creates a git commit from it,
-  returning the new Commit.
-- Add a function which takes a Repo and does a commit using its index and
-  work tree and returns the new Commit object.
+  using its index path more convenient.
+- Alter the function which checks out the entire origins tree to use the Index
+  class rather than directly using subprocess.
+- Add write_tree method to the Index class, which returns the new Tree.
+- git-python: Add a method to Repo which does a commit-tree using its index
+  and returns the new Commit.
+- git-python: Add a method to Repo which does a commit using its index and
+  work tree and returns the new Commit.
 
 Miscellaneous Notes
 -------------------
