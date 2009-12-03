@@ -60,7 +60,10 @@ def new_blob(repo, data, path=None):
 class Index(object):
     def __init__(self, repo, path=None):
         if path is None:
-            path = join(repo.wd, "index")
+            path = join(repo.path, "index")
+        self.git = repo.git
+        #else:
+        #    self.git = Git(repo.wd, index)
         self.path = path
         self.repo = repo
 
@@ -70,10 +73,10 @@ class Index(object):
             path = path[1:]
 
         if cacheinfo:
-            self.repo.git.update_index("--cacheinfo", cacheinfo.mode,
+            self.git.update_index("--cacheinfo", cacheinfo.mode,
                                        cacheinfo.blob.id, path, **kwargs)
         else:
-            self.repo.git.update_index(path, **kwargs)
+            self.git.update_index(path, **kwargs)
 
 # Commands
 def origin():
