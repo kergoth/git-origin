@@ -7,6 +7,7 @@ from errno import EEXIST
 from subprocess import call
 from git.repo import Repo
 from git.cmd import Git
+from git.errors import GitCommandError
 
 
 notes_ref = "refs/notes/origins"
@@ -119,9 +120,12 @@ def origin():
         except IndexError:
             commit = _commit(repo)
 
-        if add_origin(repo, commit, origin):
-            print("Added origin %s to commit %s" % (origin.id, commit.id))
-        else:
-            print("Origin already set.")
+        try:
+            if add_origin(repo, commit, origin):
+                print("Added origin %s to commit %s" % (origin.id, commit.id))
+            else:
+                print("Origin already set.")
+        except GitCommandError, exc:
+            raise SystemExit("Failed to add origin when executing %s:\n%s" % (exc.command, exc.stderr))
     else:
         checkout_origins(repo)
