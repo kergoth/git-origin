@@ -101,10 +101,32 @@ class Index(object):
     def read_tree(self, *args, **kwargs):
         return self.git.read_tree(*args, **kwargs)
 
+    def write_tree(self, *args, **kwargs):
+        return self.git.write_tree(*args, **kwargs)
+
 def checkout_origins(repo):
     index = Index(repo, join(repo.path, "origins-index"))
     index.read_tree(notes_ref)
     index.checkout(join(repo.path, "origins-wd"), a=True, f=True)
+
+def add_origin(repo, commit, origin):
+    origins = _origins(commit) or []
+    originids = [c.id for c in origins]
+    if origin.id in originids:
+        return
+
+    origins.append(origin)
+    originids.append(origin.id)
+
+    index = Index(repo, join(repo.path, "origins-index"))
+    index.read_tree(notes_ref)
+    index.data_update(commit.id, "\n".join(originids), add=True)
+    newtreeid = index.write_tree()
+    newcommitid = repo.git.commit_tree(newtreeid,
+                                       "-p", repo.commit(notes_ref).id,
+                                       input="Add origin %s to commit %s" % (neworigin.id, commitid))
+    repo.git.update_ref(notes_ref, newcommitid.strip())
+    return True, origins
 
 # Commands
 def origin():
@@ -116,29 +138,14 @@ def origin():
     repo = Repo()
     if len(argv) > 1:
         commit = _commit(argv[1])
-        origins = _origins(commit) or []
-
         try:
-            neworigin = _commit(repo, argv[2])
+            origin = _commit(repo, argv[2])
         except IndexError:
-            neworigin = _commit(repo)
+            origin = _commit(repo)
 
-        originids = [c.id for c in origins]
-        if neworigin.id in originids:
-            raise SystemExit(0)
-
-        originids.append(neworigin.id)
-
-        index = Index(repo, join(repo.path, "origins-index"))
-        index.read_tree(notes_ref)
-        index.data_update(commitid, "\n".join(originids), add=True)
-
-        newtreeid = index.git.write_tree().strip()
-        newcommitid = repo.git.commit_tree(newtreeid,
-                                           "-p", repo.commit(notes_ref).id,
-                                           input="Add origin %s to commit %s" % (neworigin.id, commitid))
-        repo.git.update_ref(notes_ref, newcommitid.strip())
-
-        print("Added origin %s to commit %s" % (neworigin.id, commitid))
+        if add_origin(repo, commit, origin):
+            print("Added origin %s to commit %s" % (origin.id, commit.id))
+        else:
+            print("Origin already set.")
     else:
         checkout_origins(repo)
