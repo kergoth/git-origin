@@ -1,4 +1,4 @@
-"""Commands to be used as console scripts for git_origin."""
+"""Commands to be used as console scripts for the git-origin project."""
 
 from sys import argv
 from os import makedirs, environ
@@ -44,9 +44,9 @@ class Index(object):
             self.git.update_index(path, **kwargs)
 
     def data_update(self, filename, data, mode="0644", **kwargs):
-        hash = repo.git.hash_object(stdin=True, t="blob", w=True,
+        hash = self.repo.git.hash_object(stdin=True, t="blob", w=True,
                                     input=data, path=filename)
-        blob = repo.blob(hash)
+        blob = self.repo.blob(hash)
         self.update(filename, Messenger(mode=mode, blob=blob), **kwargs)
 
     def checkout(self, wd=None, **kwargs):
@@ -69,13 +69,15 @@ def _commit(repo, ref="HEAD"):
     id = repo.git.rev_parse(ref, verify=True)
     return repo.commit(id)
 
-def origins(commit):
+def _origins(commit):
     repo = commit.repo
     notes = _commit(repo, notes_ref)
-    for fn in notes.tree:
-        if fn == commit.id:
-            blob = notes.tree[fn]
-            return [repo.commit(id.strip()) for id in blob.data.splitlines()]
+    try:
+        blob = notes.tree[commit.id]
+    except KeyError:
+        return
+
+    return [repo.commit(id.strip()) for id in blob.data.splitlines()]
 
 def checkout_origins(repo):
     index = Index(repo, join(repo.path, "origins-index"))
@@ -83,7 +85,7 @@ def checkout_origins(repo):
     index.checkout(join(repo.path, "origins-wd"), a=True, f=True)
 
 def add_origin(repo, commit, origin):
-    origins = origins(commit) or []
+    origins = _origins(commit) or []
     originids = [c.id for c in origins]
     if origin.id in originids:
         return
@@ -96,8 +98,8 @@ def add_origin(repo, commit, origin):
     index.data_update(commit.id, "\n".join(originids), add=True)
     newtreeid = index.write_tree()
     newcommitid = repo.git.commit_tree(newtreeid,
-                                       "-p", repo.commit(notes_ref).id,
-                                       input="Add origin %s to commit %s" % (neworigin.id, commitid))
+                                       "-p", _commit(repo, notes_ref).id,
+                                       input="Add origin %s to commit %s" % (origin.id, commit.id))
     repo.git.update_ref(notes_ref, newcommitid)
     return True, origins
 
@@ -111,7 +113,7 @@ def origin():
 
     repo = Repo()
     if len(argv) > 1:
-        origin = _commit(argv[1])
+        origin = _commit(repo, argv[1])
         try:
             commit = _commit(repo, argv[2])
         except IndexError:
