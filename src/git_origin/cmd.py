@@ -83,12 +83,28 @@ class Index(object):
         else:
             self.git.update_index(path, **kwargs)
 
-    def data_update(filename, data, mode="0644", **kwargs):
+    def data_update(self, filename, data, mode="0644", **kwargs):
         hash = repo.git.hash_object(stdin=True, t="blob", w=True,
                                     input=data, path=filename)
         blob = repo.blob(hash)
         self.update(filename, Messenger(mode=mode, blob=blob), **kwargs)
 
+    def checkout(self, wd=None, **kwargs):
+        if wd is None:
+            git = self.git
+        else:
+            git = Git(wd)
+            git.extra = dict(self.git.extra)
+            git.extra["env"]["GIT_WORK_TREE"] = wd
+        return git.checkout_index(**kwargs)
+
+    def read_tree(self, *args, **kwargs):
+        return self.git.read_tree(*args, **kwargs)
+
+def checkout_origins(repo):
+    index = Index(repo, join(repo.path, "origins-index"))
+    index.read_tree(notes_ref)
+    index.checkout(join(repo.path, "origins-wd"), a=True, f=True)
 
 # Commands
 def origin():
@@ -114,7 +130,7 @@ def origin():
         originids.append(neworigin.id)
 
         index = Index(repo, join(repo.path, "origins-index"))
-        index.git.read_tree(notes_ref)
+        index.read_tree(notes_ref)
         index.data_update(commitid, "\n".join(originids), add=True)
 
         newtreeid = index.git.write_tree().strip()
@@ -122,4 +138,7 @@ def origin():
                                            "-p", repo.commit(notes_ref).id,
                                            input="Add origin %s to commit %s" % (neworigin.id, commitid))
         repo.git.update_ref(notes_ref, newcommitid.strip())
+
         print("Added origin %s to commit %s" % (neworigin.id, commitid))
+    else:
+        checkout_origins(repo)
