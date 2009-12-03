@@ -18,9 +18,15 @@ ORIGIN - Commit to mark as an origin.
 COMMIT - Commit which has ORIGIN as an origin (default=HEAD)"""
 
 
+def _commit(repo, ref="HEAD"):
+    id = repo.git.rev_parse(ref, verify=True)
+    return repo.commit(id)
+
+
 class Messenger:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
+
 
 class Index(object):
     def __init__(self, repo, path=None):
@@ -62,45 +68,80 @@ class Index(object):
     def write_tree(self, *args, **kwargs):
         return self.git.write_tree(*args, **kwargs)
 
+    def update(self, path, **kwargs):
+        self.git.update_index(path, **kwargs)
 
-def _commit(repo, ref="HEAD"):
-    id = repo.git.rev_parse(ref, verify=True)
-    return repo.commit(id)
 
-def _origins(commit):
-    repo = commit.repo
-    notes = _commit(repo, notes_ref)
-    try:
-        blob = notes.tree[commit.id]
-    except KeyError:
-        return
+class Origins(object):
+    def __init__(self, repo):
+        self.repo = repo
+        self.wd = join(repo.path, "origins-wd")
+        self.index = Index(repo, join(repo.path, "origins-index"))
 
-    return [repo.commit(id.strip()) for id in blob.data.splitlines()]
+    def checkout(self):
+        self.index.read_tree(notes_ref)
+        self.index.checkout(join(repo.path, "origins-wd"), a=True, f=True)
 
-def checkout_origins(repo):
-    index = Index(repo, join(repo.path, "origins-index"))
-    index.read_tree(notes_ref)
-    index.checkout(join(repo.path, "origins-wd"), a=True, f=True)
+    def add(self, origin, commit="HEAD"):
+        origin, commit = (_commit(repo, origin), _commit(repo, commit))
 
-def add_origin(repo, commit, origin):
-    origins = _origins(commit) or []
-    originids = [c.id for c in origins]
-    if origin.id in originids:
-        return
+        origins = _origins(commit) or []
+        originids = [c.id for c in origins]
+        if origin.id in originids:
+            return
 
-    origins.append(origin)
-    originids.append(origin.id)
+        origins.append(origin)
+        originids.append(origin.id)
 
-    index = Index(repo, join(repo.path, "origins-index"))
-    index.read_tree(notes_ref)
-    index.data_update(commit.id, "\n".join(originids), add=True)
-    newtreeid = index.write_tree()
-    newcommitid = repo.git.commit_tree(newtreeid,
-                                       "-p", _commit(repo, notes_ref).id,
-                                       input="Add origin %s to commit %s" % (origin.id, commit.id))
-    repo.git.update_ref(notes_ref, newcommitid)
-    return True, origins
+        self.index.read_tree(notes_ref)
+        self.index.data_update(commit.id, "\n".join(originids), add=True)
+        newtreeid = self.index.write_tree()
+        newcommitid = self.repo.git.commit_tree(newtreeid,
+                                           "-p", _commit(self.repo, notes_ref).id,
+                                           input="Add origin %s to commit %s" % (origin.id, commit.id))
+        self.repo.git.update_ref(notes_ref, newcommitid)
+        return True, origins
 
+    def __getitem__(self, commit):
+        notes = _commit(self.repo, notes_ref)
+        try:
+            blob = notes.tree[commit.id]
+        except KeyError:
+            return
+
+        return [self.repo.commit(id.strip()) for id in blob.data.splitlines()]
+
+    def __setitem__(self, commit, origins):
+        git = self.repo.git
+        msg = "Set origins for %s\n\nOrigins:\n%s"
+        origindata = "\n".join(c.id for c in origins)
+        notes_head = _commit(self.repo, notes_ref)
+
+        self.index.read_tree(notes_ref)
+        self.index.data_update(commit.id, origindata, add=True)
+        newtreeid = self.index.write_tree()
+        newcommitid = git.commit_tree(newtreeid,
+                                      "-p", notes_head,
+                                      input=msg % (commit.id, origindata))
+        git.update_ref(notes_ref, newcommitid)
+
+    def __delitem__(self, commit):
+        git = self.repo.git
+        msg = "Remove origins for %s"
+        notes_head = _commit(self.repo, notes_ref)
+
+        self.index.read_tree(notes_ref)
+        self.index.update(commit.id, force_remove=True)
+        newtreeid = self.index.write_tree()
+        newcommitid = git.commit_tree(newtreeid,
+                                      "-p", notes_head,
+                                      input=msg % commit.id)
+        git.update_ref(notes_ref, newcommitid)
+
+    def __iter__(self):
+        self.index.read_tree(notes_ref)
+        commitids = self.index.git.ls_files().splitlines()
+        return (self.repo.commit(c) for c in commitids)
 
 # Commands
 def origin():
@@ -109,16 +150,22 @@ def origin():
     if "GIT_NOTES_REF" in environ:
         del environ["GIT_NOTES_REF"]
 
-    repo = Repo()
-    if 2 <= len(argv) <= 3:
-        origin = _commit(repo, argv[1])
-        try:
-            commit = _commit(repo, argv[2])
-        except IndexError:
-            commit = _commit(repo)
+    if 1 < len(argv) < 4:
+        repo = Repo()
 
         try:
-            if add_origin(repo, commit, origin):
+            origin = _commit(repo, argv[1])
+            try:
+                commit = _commit(repo, argv[2])
+            except IndexError:
+                commit = _commit(repo)
+
+            origindata = Origins(repo)
+            origins = origindata[commit] or []
+
+            if not origin.id in set(c.id for c in origins):
+                origins.append(origin)
+                origindata[commit] = origins
                 print("Added origin %s to commit %s" % (origin.id, commit.id))
             else:
                 print("Origin already set.")

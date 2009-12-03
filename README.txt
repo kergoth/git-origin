@@ -33,26 +33,23 @@ Tools
     git-log-like interface.  If 'tig' is available, it will use
     it as the pager by default, otherwise it falls back to less
     or more.
-:git-origins-from-patch-id:
+:git-populate-origins:
     Populates origin information using patch-id
     information to identify identical commits.
 
 TODO
 ----
+- git-origin-blacklist: Implement.
+- git-cherry-origins: Implement.
+- git-log-origins: Implement.
+- git-populate-origins: Implement.
+- git-origin: Add proper commandline argument handling, with subcommands for
+  show/add/remove and possibly a subcommand to show the all of the origin data
+  for the commits on the current (or specified) branch.
+- Split up the cmd module.
 - git-python: Add a method to Repo which does a commit-tree using its index
   and supplied work tee and returns the new Commit.
 - git-python: Add a method to Repo which does a commit using its index and
   work tree and returns the new Commit.
-
-Miscellaneous Notes
--------------------
-Process for creating a commit that changes a file:
-
-#. :read-tree: read a tree-ish into the index
-#. :checkout-index: populate the working copy from the index
-#. :update-index: update the index with modifications from the working copy
-#. :write-tree: write a tree from the index
-#. :commit-tree: create a commit from a tree
-#. :update-ref: update ref to point at the new commit
 
 .. vim: set encoding=utf-8 ft=rst:
