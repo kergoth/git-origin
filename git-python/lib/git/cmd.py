@@ -45,6 +45,7 @@ class Git(object):
         """
         super(Git, self).__init__()
         self.git_dir = git_dir
+        self.extra = dict(extra)
 
     def __getattr__(self, name):
         """
@@ -129,7 +130,7 @@ class Git(object):
                                 stdin=istream,
                                 stderr=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
-                                **extra
+                                **self.extra
                                 )
 
         # Wait for the process to return

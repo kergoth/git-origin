@@ -71,6 +71,10 @@ class Repo(object):
            raise InvalidGitRepositoryError(epath)
 
         self.git = Git(self.wd)
+        if not self.bare:
+            self.git.extra["env"] = {
+                "GIT_WORK_TREE": self.wd,
+            }
 
     # Description property
     def _get_description(self):
