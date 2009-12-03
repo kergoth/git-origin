@@ -26,6 +26,7 @@ setup(name = "git-origin",
       entry_points = {
           "console_scripts": [
               "git-origin = git_origin.cmd:origin",
+              "git-origin-blacklist = git_origin.cmd:blacklist",
           ],
       },
 )

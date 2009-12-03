@@ -11,21 +11,24 @@ from git.cmd import Git
 from git.errors import GitCommandError
 
 
+if "GIT_NOTES_REF" in environ:
+    del environ["GIT_NOTES_REF"]
+
+
 notes_ref = "refs/notes/origins"
-usage = """git-origin ORIGIN [COMMIT]
+blacklist_filename = "blacklist"
+origin_usage = """git-origin ORIGIN [COMMIT]
 
 ORIGIN - Commit to mark as an origin.
 COMMIT - Commit which has ORIGIN as an origin (default=HEAD)"""
+blacklist_usage = """git-blacklist COMMIT
+
+COMMIT - Commit to add to the blacklist."""
 
 
 def _rev(repo, ref="HEAD"):
     id = repo.git.rev_parse(ref, verify=True)
     return repo.commit(id)
-
-
-class Messenger:
-    def __init__(self, **kwargs):
-        self.__dict__ = kwargs
 
 
 class Index(object):
@@ -95,7 +98,7 @@ class Origins(object):
     def __getitem__(self, commit):
         head = _rev(self.repo, self.ref)
         try:
-            blob = head.tree[commit.id]
+            blob = head.tree[str(commit)]
         except KeyError:
             return
 
@@ -106,13 +109,13 @@ class Origins(object):
         origindata = "\n".join(c.id for c in origins)
 
         self.index.read_tree(self.ref)
-        self.index.data_update(commit.id, origindata, add=True)
-        self._commit(msg % (commit.id, origindata))
+        self.index.data_update(str(commit), origindata, add=True)
+        self._commit(msg % (commit, origindata))
 
     def __delitem__(self, commit):
         self.index.read_tree(self.ref)
-        self.index.update(commit.id, force_remove=True)
-        self._commit("Remove origins for %s" % commit.id)
+        self.index.update(str(commit), force_remove=True)
+        self._commit("Remove origins for %s" % commit)
 
     def __iter__(self):
         self.index.read_tree(self.ref)
@@ -129,9 +132,9 @@ def add_origin(repo, origin, commit="HEAD"):
     if not origin.id in set(c.id for c in origins):
         origins.append(origin)
         origindata[commit] = origins
-        print("Added origin %s to commit %s" % (origin.id, commit.id))
+        print("Added origin %s to commit %s" % (origin, commit))
     else:
-        print("Origin already set.")
+        print("Origin already set")
 
 
 # Commands
@@ -148,5 +151,32 @@ def origin():
         except GitCommandError, exc:
             exit("Failed to add origin when executing %s:\n%s" % (exc.command, exc.stderr))
     else:
-        print >>stderr, usage
+        print >>stderr, origin_usage
+        exit(2)
+
+
+def add_blacklist(repo, commit):
+    commit = _rev(repo, commit)
+
+    origindata = Origins(repo)
+    bldata = origindata[blacklist_filename] or []
+
+    if not commit.id in set(c.id for c in bldata):
+        bldata.append(commit)
+        origindata[blacklist_filename] = bldata
+        print("Added commit %s to blacklist" % commit)
+    else:
+        print("Commit already in the blacklist")
+
+def blacklist():
+    """Add the supplied commit-ish to the blacklist."""
+
+    if len(argv) == 2:
+        repo = Repo()
+        try:
+            add_blacklist(repo, argv[1])
+        except GitCommandError, exc:
+            exit("Failed to add commit to blacklist when executing %s:\n%s" % (exc.command, exc.stderr))
+    else:
+        print >>stderr, blacklist_usage
         exit(2)
