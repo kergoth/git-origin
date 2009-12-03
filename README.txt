@@ -39,13 +39,8 @@ Tools
 
 TODO
 ----
-- Add checkout method to the Index class to make calls to checkout-index
-  using its index path more convenient.
-- Alter the function which checks out the entire origins tree to use the Index
-  class rather than directly using subprocess.
-- Add write_tree method to the Index class, which returns the new Tree.
 - git-python: Add a method to Repo which does a commit-tree using its index
-  and returns the new Commit.
+  and supplied work tee and returns the new Commit.
 - git-python: Add a method to Repo which does a commit using its index and
   work tree and returns the new Commit.
 
