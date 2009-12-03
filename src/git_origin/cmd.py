@@ -34,21 +34,13 @@ class Index(object):
         self.path = path
         self.repo = repo
 
-    def update(self, path, cacheinfo=None, **kwargs):
+    def data_update(self, path, data, mode="0644", **kwargs):
         if isabs(path):
             path = path[1:]
 
-        if cacheinfo:
-            self.git.update_index("--cacheinfo", cacheinfo.mode,
-                                       cacheinfo.blob.id, path, **kwargs)
-        else:
-            self.git.update_index(path, **kwargs)
-
-    def data_update(self, filename, data, mode="0644", **kwargs):
         hash = self.repo.git.hash_object(stdin=True, t="blob", w=True,
-                                    input=data, path=filename)
-        blob = self.repo.blob(hash)
-        self.update(filename, Messenger(mode=mode, blob=blob), **kwargs)
+                                         input=data, path=path)
+        self.git.update_index("--cacheinfo", mode, hash, path, **kwargs)
 
     def checkout(self, wd=None, **kwargs):
         if wd is None:
