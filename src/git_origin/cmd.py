@@ -78,30 +78,6 @@ class Origins(object):
         self.wd = join(repo.path, "origins-wd")
         self.index = Index(repo, join(repo.path, "origins-index"))
 
-    def checkout(self):
-        self.index.read_tree(notes_ref)
-        self.index.checkout(join(repo.path, "origins-wd"), a=True, f=True)
-
-    def add(self, origin, commit="HEAD"):
-        origin, commit = (_commit(repo, origin), _commit(repo, commit))
-
-        origins = _origins(commit) or []
-        originids = [c.id for c in origins]
-        if origin.id in originids:
-            return
-
-        origins.append(origin)
-        originids.append(origin.id)
-
-        self.index.read_tree(notes_ref)
-        self.index.data_update(commit.id, "\n".join(originids), add=True)
-        newtreeid = self.index.write_tree()
-        newcommitid = self.repo.git.commit_tree(newtreeid,
-                                           "-p", _commit(self.repo, notes_ref).id,
-                                           input="Add origin %s to commit %s" % (origin.id, commit.id))
-        self.repo.git.update_ref(notes_ref, newcommitid)
-        return True, origins
-
     def __getitem__(self, commit):
         notes = _commit(self.repo, notes_ref)
         try:
@@ -143,6 +119,23 @@ class Origins(object):
         commitids = self.index.git.ls_files().splitlines()
         return (self.repo.commit(c) for c in commitids)
 
+    def _checkout(self):
+        self.index.read_tree(notes_ref)
+        self.index.checkout(join(repo.path, "origins-wd"), a=True, f=True)
+
+def add_origin(repo, origin, commit="HEAD"):
+    origin, commit = (_commit(repo, origin), _commit(repo, commit))
+
+    origindata = Origins(repo)
+    origins = origindata[commit] or []
+
+    if not origin.id in set(c.id for c in origins):
+        origins.append(origin)
+        origindata[commit] = origins
+        print("Added origin %s to commit %s" % (origin.id, commit.id))
+    else:
+        print("Origin already set.")
+
 # Commands
 def origin():
     """Add the supplied commit-ish as an origin on HEAD (or the second supplied commit-ish)."""
@@ -152,23 +145,8 @@ def origin():
 
     if 1 < len(argv) < 4:
         repo = Repo()
-
         try:
-            origin = _commit(repo, argv[1])
-            try:
-                commit = _commit(repo, argv[2])
-            except IndexError:
-                commit = _commit(repo)
-
-            origindata = Origins(repo)
-            origins = origindata[commit] or []
-
-            if not origin.id in set(c.id for c in origins):
-                origins.append(origin)
-                origindata[commit] = origins
-                print("Added origin %s to commit %s" % (origin.id, commit.id))
-            else:
-                print("Origin already set.")
+            add_origin(repo, *argv[1:2])
         except GitCommandError, exc:
             exit("Failed to add origin when executing %s:\n%s" % (exc.command, exc.stderr))
     else:
