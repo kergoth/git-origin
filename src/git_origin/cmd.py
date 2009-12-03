@@ -22,11 +22,10 @@ def _commit(repo, ref="HEAD"):
 
 def _origins(commit):
     repo = commit.repo
-    commits = repo.commits(notes_ref, max_count=1)
-    tree = commits[0].tree
-    for fn in tree:
+    notes = _commit(repo, notes_ref)
+    for fn in notes.tree:
         if fn == commit.id:
-            blob = tree[fn]
+            blob = notes.tree[fn]
             return [repo.commit(id.strip()) for id in blob.data.splitlines()]
 
 def _add_origin(origin, commit):
