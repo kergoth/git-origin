@@ -60,13 +60,19 @@ class Index(object):
     def __init__(self, repo, path=None):
         if path is None:
             path = join(repo.path, "index")
-        self.git = repo.git
-        #else:
-        #    self.git = Git(repo.wd, index)
+            self.git = repo.git
+        else:
+            self.git = Git(repo.wd)
+            env = {
+                "GIT_INDEX_FILE": path,
+            }
+            if not repo.bare:
+                env["GIT_WORK_TREE"] = repo.wd
+            self.git.extra["env"] = env
+
         self.path = path
         self.repo = repo
 
-    # FIXME: Make update operate against the self.path index file.
     def update(self, path, cacheinfo=None, **kwargs):
         if isabs(path):
             path = path[1:]
@@ -88,13 +94,29 @@ def origin():
     if len(argv) > 1:
         commitid = repo.git.rev_parse(argv[1].strip(), verify=True)
         commit = repo.commit(commitid)
-        origins = _origins(commit)
+        origins = _origins(commit) or []
         if origins:
             print("Origins for %s:" % commit)
             for origin in origins:
                 print("    %s" % origin)
-        #_add_origin(commit, commit)
-        #blob = new_blob(repo, "Foo\nBar\nBaz", "/foo")
-        #cacheinfo = Messenger(mode="0755", blob=blob)
-        #index = Index(repo)
-        #index.update("/foo", cacheinfo, add=True)
+
+        try:
+            neworigin = _commit(repo, argv[2])
+        except IndexError:
+            neworigin = _commit(repo)
+
+        originids = [c.id for c in origins]
+        if neworigin.id in originids:
+            raise SystemExit(0)
+
+        originids.append(neworigin.id)
+        blob = new_blob(repo, "\n".join(originids), commitid)
+        cacheinfo = Messenger(mode="0644", blob=blob)
+        index = Index(repo, join(repo.path, "origins-index"))
+        index.git.read_tree(notes_ref)
+        index.update(commitid, cacheinfo, add=True)
+        newtreeid = index.git.write_tree().strip()
+        newcommitid = repo.git.commit_tree(newtreeid,
+                                           "-p", repo.commit(notes_ref).id,
+                                           input="Add origin %s to commit %s" % (neworigin.id, commitid))
+        repo.git.update_ref(notes_ref, newcommitid.strip())
