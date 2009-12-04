@@ -126,7 +126,7 @@ class Origins(object):
     def __iter__(self):
         self.index.read_tree(self.ref)
         commitids = self.index.git.ls_files().splitlines()
-        return (self.repo.commit(c) for c in commitids)
+        return (self.repo.commit(c) for c in commitids if c.strip() != blacklist_filename)
 
 
 def add_origin(repo, origin, commit="HEAD"):
