@@ -4,7 +4,6 @@ from sys import argv
 from os import makedirs, environ
 from os.path import join, isabs
 from errno import EEXIST
-from subprocess import call
 from sys import exit, stderr
 from git.repo import Repo
 from git.cmd import Git

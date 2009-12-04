@@ -47,9 +47,19 @@ TODO
   show/add/remove and possibly a subcommand to show the all of the origin data
   for the commits on the current (or specified) branch.
 - Split up the cmd module.
-- git-python: Add a method to Repo which does a commit-tree using its index
-  and supplied work tee and returns the new Commit.
-- git-python: Add a method to Repo which does a commit using its index and
-  work tree and returns the new Commit.
+- Switch everything to the logger module.
+- git-python: Add our _rev function to Repo as a rev_parse method.
+
+Uncertain:
+- git-python: add Index class from git-origin.
+- git-python: Make Repo utilize Index.
+- git-python: Allow passing custom work tree and index in Repo's constructor.
+              I really don't know if this would be useful, because it would
+              still be using the default HEAD ref.  If you were to run
+              repo.git.checkout() with a non-standard index and work tree, it
+              would still update the HEAD ref, which would no longer match the
+              primary checkout.  It would make it slightly more convenient for
+              non-porcelain commands like read-tree/write-tree, but that's
+              about all the usefulness I can see.
 
 .. vim: set encoding=utf-8 ft=rst:
