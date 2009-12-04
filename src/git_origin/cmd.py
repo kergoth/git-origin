@@ -60,10 +60,17 @@ class Index(object):
     def checkout(self, wd=None, **kwargs):
         if wd is None:
             git = self.git
+            wd = self.repo.wd
         else:
             git = Git(wd)
             git.extra = dict(self.git.extra)
             git.extra["env"]["GIT_WORK_TREE"] = wd
+
+        try:
+            makedirs(wd)
+        except OSError, exc:
+            if exc.errno != EEXIST:
+                raise
         return git.checkout_index(**kwargs)
 
     def read_tree(self, *args, **kwargs):
