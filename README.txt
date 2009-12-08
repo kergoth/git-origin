@@ -39,7 +39,16 @@ Tools
 
 TODO
 ----
-- git-origin-blacklist: Implement.
+- git-python: repo.commit(<some merge commit>) seems to ignore the merge
+              commit, returning the next non-merge commit.
+- git-python: getting the commit corresponding to a ref is not as easy as it
+              should be.  You have to call find_all and grab the first
+              element, which seems silly.  I think we should add a
+              Commit.rev(ref) which calls rev-parse, then cat-file and parses
+              that into a new Commit.  Either that, or we handle refs being
+              passed into a Commit constructor.  You can do that today, but
+              then the .id will point to the ref, it doesn't call rev-parse
+              against it itself.
 - git-cherry-origins: Implement.
 - git-log-origins: Implement.
 - git-populate-origins: Implement.
