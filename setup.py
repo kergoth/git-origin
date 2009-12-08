@@ -27,6 +27,7 @@ setup(name = "git-origin",
           "console_scripts": [
               "git-origin = git_origin.cmd:origin",
               "git-origin-blacklist = git_origin.cmd:blacklist",
+              "git-cherry-origins = git_origin.cmd:cherry",
           ],
       },
 )

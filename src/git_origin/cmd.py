@@ -5,9 +5,11 @@ from os import makedirs, environ
 from os.path import join, isabs
 from errno import EEXIST
 from sys import exit, stderr
+from StringIO import StringIO
 from git.repo import Repo
 from git.cmd import Git
 from git.errors import GitCommandError
+from git.commit import Commit
 
 
 if "GIT_NOTES_REF" in environ:
@@ -19,15 +21,19 @@ blacklist_filename = "blacklist"
 origin_usage = """git-origin ORIGIN [COMMIT]
 
 ORIGIN - Commit to mark as an origin.
-COMMIT - Commit which has ORIGIN as an origin (default=HEAD)"""
+COMMIT - Commit which has ORIGIN as an origin (default=HEAD)."""
 blacklist_usage = """git-blacklist COMMIT
 
 COMMIT - Commit to add to the blacklist."""
+cherry_usage = """git-cherry-origins [UPSTREAM [LOCAL]]
+
+LOCAL - Local branch to compare against upstream, defaults to HEAD.
+UPSTREAM - Upstream branch to compare against local, defaults to the remote
+           the local branch is tracking."""
 
 
-def _rev(repo, ref="HEAD"):
-    id = repo.git.rev_parse(ref, verify=True)
-    return repo.commit(id)
+def _commit(repo, ref="HEAD"):
+    return Commit(repo, repo.git.rev_parse(ref, verify=True))
 
 
 class Index(object):
@@ -90,7 +96,7 @@ class Origins(object):
         self.ref = notes_ref
 
     def _commit(self, msg):
-        parent = _rev(self.repo, self.ref)
+        parent = _commit(self.repo, self.ref)
         newtreeid = self.index.write_tree()
         newcommitid = self.repo.git.commit_tree(newtreeid, "-p", parent.id,
                                                 input=msg)
@@ -102,13 +108,13 @@ class Origins(object):
         self.index.checkout(self.wd, a=True, f=True)
 
     def __getitem__(self, commit):
-        head = _rev(self.repo, self.ref)
+        head = _commit(self.repo, self.ref)
         try:
             blob = head.tree[str(commit)]
         except KeyError:
             return
 
-        return [self.repo.commit(id.strip()) for id in blob.data.splitlines()]
+        return (self.repo.commit(id.strip()) for id in blob.data.splitlines())
 
     def __setitem__(self, commit, origins):
         msg = "Set origins for %s\n\nOrigins:\n%s"
@@ -130,7 +136,7 @@ class Origins(object):
 
 
 def add_origin(repo, origin, commit="HEAD"):
-    origin, commit = (_rev(repo, origin), _rev(repo, commit))
+    origin, commit = (_commit(repo, origin), _commit(repo, commit))
 
     origindata = Origins(repo)
     origins = origindata[commit] or []
@@ -162,7 +168,7 @@ def origin():
 
 
 def add_blacklist(repo, commit):
-    commit = _rev(repo, commit)
+    commit = _commit(repo, commit)
 
     origindata = Origins(repo)
     bldata = origindata[blacklist_filename] or []
@@ -173,6 +179,7 @@ def add_blacklist(repo, commit):
         print("Added commit %s to blacklist" % commit)
     else:
         print("Commit already in the blacklist")
+
 
 def blacklist():
     """Add the supplied commit-ish to the blacklist."""
@@ -185,4 +192,86 @@ def blacklist():
             exit("Failed to add commit to blacklist when executing %s:\n%s" % (exc.command, exc.stderr))
     else:
         print >>stderr, blacklist_usage
+        exit(2)
+
+
+def left_right(repo, left, right):
+    def _rev_left_right(left, right):
+        revinfo = repo.git.rev_list("%s...%s" % (left, right), left_right=True).splitlines()
+        for rev in revinfo:
+            c = Commit(repo, rev[1:])
+            c.direction = rev[0]
+            yield c
+
+    def _origins_batch(commits):
+        blobs = "\n".join("%s:%s" % (notes_ref, c) for c in commits)
+        contentstr = repo.git.cat_file(batch=True, input=blobs)
+        content = StringIO(contentstr)
+        while content:
+            line = content.readline().rstrip()
+            if not line:
+                break
+
+            words = line.split()
+            if words[1] == "missing":
+                yield None
+                continue
+
+            (hash, type, size) = words
+            data = content.read(int(size))
+            content.read(1) # Kill the trailing LF
+            yield (Commit(repo, hash) for hash in data.splitlines())
+
+    commits = list(_rev_left_right(left, right))
+    commitmap = dict((c.id, c) for c in commits)
+    commitids = set(c.id for c in commits)
+    origindata = dict(zip(commits, _origins_batch(commits)))
+
+    for (commit, origins) in origindata.iteritems():
+        if origins is not None:
+            for o in origins:
+                if o.id in commitmap:
+                    commitmap[o.id].direction = "-"
+
+            if all(o.id in commitids for o in origins):
+                commit.direction = "-"
+
+    return commits
+
+
+def cherry():
+    """Display a git-cherry-like view of the commits between two branches."""
+
+    args = len(argv)
+    repo = Repo()
+
+    if args > 1:
+        upstream = argv[1]
+    else:
+        headref = repo.git.rev_parse("HEAD", symbolic_full_name=True)
+        if not headref:
+            exit("Must supply upstream ref when using a detached HEAD.")
+
+        upstream = repo.git.for_each_ref(headref, format="%(upstream)")
+        if not upstream:
+            exit("No remote tracking branch for this branch, please supply upstream ref.")
+
+    if args > 2:
+        local = argv[2]
+    else:
+        local = "HEAD"
+
+    try:
+        upstream, local = (_commit(repo, upstream), _commit(repo, local))
+        commits = left_right(repo, upstream, local)
+        for c in commits:
+            if c.direction == "-":
+                print("%s %s" % (c.direction, c))
+            elif c.direction == ">":
+                print("+ %s" % c)
+    except GitCommandError, exc:
+        exit("Failed to display commits when executing %s:\n%s" % (exc.command, exc.stderr))
+
+    if args > 3:
+        print >>stderr, cherry_usage
         exit(2)
