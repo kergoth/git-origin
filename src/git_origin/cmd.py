@@ -5,6 +5,7 @@ from os import makedirs, environ, sep
 from os.path import join, isabs
 from errno import EEXIST
 from sys import exit, stderr
+from subprocess import call
 from StringIO import StringIO
 from git.repo import Repo
 from git.cmd import Git
@@ -78,6 +79,25 @@ class Index(object):
                 raise
         return git.checkout_index(**kwargs)
 
+    def merge(self, remoteref, wd=None, **kwargs):
+        if wd is None:
+            git = self.git
+        else:
+            git = Git(wd)
+            git.extra = dict(self.git.extra)
+            git.extra["env"]["GIT_WORK_TREE"] = wd
+        git.merge(remoteref)
+
+    def merge_index(self, *args, **kwargs):
+        wd = kwargs.get("work_tree")
+        if wd is None:
+            git = self.git
+        else:
+            git = Git(wd)
+            git.extra = dict(self.git.extra)
+            git.extra["env"]["GIT_WORK_TREE"] = wd
+        return git.merge_index(*args, **kwargs)
+
     def read_tree(self, *args, **kwargs):
         return self.git.read_tree(*args, **kwargs)
 
@@ -94,6 +114,36 @@ class Origins(object):
         self.wd = join(repo.path, "origins-wd")
         self.index = Index(repo, join(repo.path, "origins-index"))
         self.ref = notes_ref
+
+    def pull(self, remote):
+        fetches = self.repo.git.config("remote.%s.fetch" % remote, get_all=True)
+        refspec = "+refs/notes/origins:refs/remotes/%s/origins" % remote
+        if not refspec in fetches.splitlines():
+            self.repo.git.config("remote.%s.fetch" % remote,
+                                 "+refs/notes/origins:refs/remotes/%s/origins" % remote,
+                                add=True)
+        print("Fetching %s" % remote)
+        print(self.repo.git.fetch(remote))
+        print("Merging refs/remotes/%s/origins" % remote)
+        base = self.repo.git.merge_base(notes_ref, "refs/remotes/%s/origins" % remote)
+        self.index.read_tree(base, notes_ref, "refs/remotes/%s/origins" % remote,
+                             m=True, aggressive=True)
+        self.index.checkout(self.wd, a=True, f=True)
+        try:
+            tree = self.index.write_tree()
+        except GitCommandError:
+            try:
+                self.index.merge_index("-o", "git-merge-one-file", "-a")
+            except GitCommandError, exc:
+                print >>stderr, exc.stderr
+                pass
+
+            print("Spawning shell to resolve conflicts.")
+            env = {
+                "GIT_WORK_TREE": self.wd,
+                "GIT_INDEX_FILE": self.index.path,
+            }
+            call(["sh"], env=env, pwd=self.wd)
 
     def _commit(self, msg):
         parent = _commit(self.repo, self.ref)
@@ -336,3 +386,16 @@ def file():
                commit.id in upstream_precommits:
                 commit.direction = "-"
         print("%s %s" % (commit.direction, commit))
+
+
+def fetch():
+    raise NotImplementedError()
+
+def pull():
+    remote = argv[1]
+    repo = Repo()
+    origins = Origins(repo)
+    try:
+        origins.pull(remote)
+    except GitCommandError, exc:
+        exit("Unable to pull when executing %s:\n%s" % (exc.command, exc.stderr))

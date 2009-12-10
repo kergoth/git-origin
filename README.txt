@@ -44,6 +44,8 @@ Tools
 TODO
 ----
 - git-fetch-origins/git-pull-origins: Implement.
+- git-populate-origins: Implement.
+- Convert all the git origin scripts to subcommands of a git-origin script.
 - git-python: repo.commit(<some merge commit>) seems to ignore the merge
               commit, returning the next non-merge commit.
 - git-python: getting the commit corresponding to a ref is not as easy as it
@@ -54,14 +56,9 @@ TODO
               passed into a Commit constructor.  You can do that today, but
               then the .id will point to the ref, it doesn't call rev-parse
               against it itself.
-- git-cherry-origins: Implement.
-- git-log-origins: Implement.
-- git-populate-origins: Implement.
-- git-origin: Add proper commandline argument handling, with subcommands for
-  show/add/remove and possibly a subcommand to show the all of the origin data
-  for the commits on the current (or specified) branch.
-- Split up the cmd module.
 - Switch everything to the logger module.
+- Split up the cmd module.
+- git-log-origins: Implement.
 - git-python: Add our _rev function to Repo as a rev_parse method.
 
 Uncertain:
