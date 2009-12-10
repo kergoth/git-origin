@@ -1,7 +1,7 @@
 """Commands to be used as console scripts for the git-origin project."""
 
 from sys import argv
-from os import makedirs, environ
+from os import makedirs, environ, sep
 from os.path import join, isabs
 from errno import EEXIST
 from sys import exit, stderr
@@ -139,7 +139,7 @@ def add_origin(repo, origin, commit="HEAD"):
     origin, commit = (_commit(repo, origin), _commit(repo, commit))
 
     origindata = Origins(repo)
-    origins = origindata[commit] or []
+    origins = list(origindata[commit] or "")
 
     if not origin.id in set(c.id for c in origins):
         origins.append(origin)
@@ -171,7 +171,7 @@ def add_blacklist(repo, commit):
     commit = _commit(repo, commit)
 
     origindata = Origins(repo)
-    bldata = origindata[blacklist_filename] or []
+    bldata = list(origindata[blacklist_filename] or "")
 
     if not commit.id in set(c.id for c in bldata):
         bldata.append(commit)
@@ -195,10 +195,14 @@ def blacklist():
         exit(2)
 
 
-def left_right(repo, left, right):
+def left_right(repo, left, right, *args):
     def _rev_left_right(left, right):
-        revinfo = repo.git.rev_list("%s...%s" % (left, right), left_right=True).splitlines()
-        for rev in revinfo:
+        if args:
+            revinfo = repo.git.rev_list("%s...%s" % (left, right), left_right=True, *args)
+        else:
+            revinfo = repo.git.rev_list("%s...%s" % (left, right), left_right=True)
+
+        for rev in revinfo.splitlines():
             c = Commit(repo, rev[1:])
             c.direction = rev[0]
             yield c
@@ -226,9 +230,16 @@ def left_right(repo, left, right):
     commitmap = dict((c.id, c) for c in commits)
     commitids = set(c.id for c in commits)
     origindata = dict(zip(commits, _origins_batch(commits)))
+    blorigins = Origins(repo)[blacklist_filename]
+    if blorigins:
+        blacklist = set(c.id for c in blorigins)
+    else:
+        blacklist = set()
 
     for (commit, origins) in origindata.iteritems():
-        if origins is not None:
+        if commit.id in blacklist:
+            commit.direction = "-"
+        elif origins is not None:
             for o in origins:
                 if o.id in commitmap:
                     commitmap[o.id].direction = "-"
@@ -263,7 +274,12 @@ def cherry():
 
     try:
         upstream, local = (_commit(repo, upstream), _commit(repo, local))
-        commits = left_right(repo, upstream, local)
+        extra = argv[3:]
+        if extra:
+            commits = reversed(left_right(repo, upstream, local, *extra))
+        else:
+            commits = reversed(left_right(repo, upstream, local))
+
         for c in commits:
             if c.direction == "-":
                 print("%s %s" % (c.direction, c))
@@ -272,6 +288,51 @@ def cherry():
     except GitCommandError, exc:
         exit("Failed to display commits when executing %s:\n%s" % (exc.command, exc.stderr))
 
-    if args > 3:
-        print >>stderr, cherry_usage
-        exit(2)
+def _traverse(tree, path):
+    parts = path.split(sep)
+    while parts:
+        piece = parts.pop(0)
+        obj = tree[piece]
+        if hasattr(obj, "mime_type"):
+            yield obj
+
+        tree = obj
+
+def file():
+    """For a given file, compare its history against UPSTREAM."""
+
+    repo = Repo()
+    fn = argv[1]
+    upstream = argv[2]
+    try:
+        local = argv[3]
+    except IndexError:
+        local = "HEAD"
+
+    lstart = Commit.find_all(repo, local, fn)[-1]
+    initialblob = _traverse(lstart.tree, fn).next()
+    def _commit_for_blob(ref, fn):
+        upstream = Commit.find_all(repo, ref, fn)
+        for commit in upstream:
+            try:
+                blob = _traverse(commit.tree, fn).next()
+            except KeyError:
+                return
+
+            if blob.id == initialblob.id:
+                return commit
+
+    ustart = _commit_for_blob(upstream, fn)
+    if ustart:
+        upstream_precommits = set(c.id for c in Commit.find_all(repo, ustart, fn))
+    else:
+        print >>stderr, "Warning: upstream does not have the initial blob for %s." % fn
+
+    upstream, local = (_commit(repo, upstream), _commit(repo, local))
+    commits = reversed(left_right(repo, upstream, local, fn))
+    for commit in commits:
+        if ustart:
+            if commit.direction != "-" and \
+               commit.id in upstream_precommits:
+                commit.direction = "-"
+        print("%s %s" % (commit.direction, commit))

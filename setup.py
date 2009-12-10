@@ -28,6 +28,7 @@ setup(name = "git-origin",
               "git-origin = git_origin.cmd:origin",
               "git-origin-blacklist = git_origin.cmd:blacklist",
               "git-cherry-origins = git_origin.cmd:cherry",
+              "git-file-origin = git_origin.cmd:file",
           ],
       },
 )
