@@ -36,9 +36,14 @@ Tools
 :git-populate-origins:
     Populates origin information using patch-id
     information to identify identical commits.
+:git-fetch-origins/git-pull-origins:
+    Fetches the origins ref from a remote repository and merges it into our
+    origins, possibly dropping the user into the temporary checkout to resolve
+    any conflicts.
 
 TODO
 ----
+- git-fetch-origins/git-pull-origins: Implement.
 - git-python: repo.commit(<some merge commit>) seems to ignore the merge
               commit, returning the next non-merge commit.
 - git-python: getting the commit corresponding to a ref is not as easy as it
