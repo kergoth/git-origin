@@ -31,6 +31,7 @@ setup(name = "git-origin",
               "git-file-origin = git_origin.cmd:file",
               "git-pull-origins = git_origin.cmd:pull",
               "git-push-origins = git_origin.cmd:push",
+              "git-merge-origins-driver = git_origin.cmd:merge",
           ],
       },
 )

@@ -408,3 +408,26 @@ def push():
         origins.push(remote)
     except GitCommandError, exc:
         exit("Unable to push when executing %s:\n%s" % (exc.command, exc.stderr))
+
+def merge():
+    repo = Repo()
+    fn = argv[4]
+    base = Blob(repo, argv[1], name=fn)
+    left = Blob(repo, argv[2], name=fn)
+    right = Blob(repo, argv[3], name=fn)
+
+    origins = set(left.data.splitlines())
+    base_origins = set(base.data.splitlines())
+    right_origins = set(right.data.splitlines())
+
+    removed = base_origins.difference(right_origins)
+    for rem in removed:
+        if rem in origins:
+            origins.remove(rem)
+
+    added = right_origins.difference(base_origins)
+    for add in added:
+        if not add in origins:
+            origins.add(add)
+
+    open(fn, "w").write(linesep.join(leftorigins))
