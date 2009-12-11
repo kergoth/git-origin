@@ -36,6 +36,13 @@ UPSTREAM - Upstream branch to compare against local, defaults to the remote
 def _commit(repo, ref="HEAD"):
     return Commit(repo, repo.git.rev_parse(ref, verify=True))
 
+def _existing_origins(repo, data):
+    for id in data.splitlines():
+        try:
+            id = repo.git.rev_parse(id, verify=True)
+            yield id
+        except GitCommandError:
+            continue
 
 class Index(object):
     def __init__(self, repo, path=None):
@@ -126,8 +133,15 @@ class Origins(object):
             self.repo.git.config("remote.%s.fetch" % remote, refspec, add=True)
 
         print(self.repo.git.fetch(remote))
-        base = self.repo.git.merge_base(notes_ref, remote_ref)
-        self.index.read_tree(base, notes_ref, remote_ref,
+
+        try:
+            notes = self.repo.git.rev_parse(self.ref, verify=True)
+        except GitCommandError:
+            self.repo.git.update_ref(self.ref, remote_ref)
+            return
+
+        base = self.repo.git.merge_base(notes, remote_ref)
+        self.index.read_tree(base, notes, remote_ref,
                              m=True, aggressive=True)
         self.index.checkout(self.wd, a=True, f=True)
         self.index.merge_index("-o", "git-merge-origins-driver", "-a")
@@ -153,7 +167,7 @@ class Origins(object):
         except KeyError:
             return
 
-        return (self.repo.commit(id.strip()) for id in blob.data.splitlines())
+        return (Commit(self.repo, id) for id in _existing_origins(self.repo, blob.data))
 
     def __setitem__(self, commit, origins):
         msg = "Set origins for %s\n\nOrigins:\n%s"
@@ -263,7 +277,8 @@ def left_right(repo, left, right, *args):
             (hash, type, size) = words
             data = content.read(int(size))
             content.read(1) # Kill the trailing LF
-            yield (Commit(repo, hash) for hash in data.splitlines())
+
+            yield (Commit(repo, sha1) for sha1 in _existing_origins(repo, data))
 
     commits = list(_rev_left_right(left, right))
     commitmap = dict((c.id, c) for c in commits)
