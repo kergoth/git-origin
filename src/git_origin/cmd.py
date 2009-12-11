@@ -120,41 +120,27 @@ class Origins(object):
 
     def pull(self, remote):
         fetches = self.repo.git.config("remote.%s.fetch" % remote, get_all=True)
-        refspec = "+refs/notes/origins:refs/remotes/%s/origins" % remote
+        remote_ref = "refs/remotes/%s/origins" % remote
+        refspec = "+%s:%s" % (self.ref, remote_ref)
         if not refspec in fetches.splitlines():
-            self.repo.git.config("remote.%s.fetch" % remote,
-                                 "+refs/notes/origins:refs/remotes/%s/origins" % remote,
-                                add=True)
-        print("Fetching %s" % remote)
+            self.repo.git.config("remote.%s.fetch" % remote, refspec, add=True)
+
         print(self.repo.git.fetch(remote))
-        print("Merging refs/remotes/%s/origins" % remote)
-        base = self.repo.git.merge_base(notes_ref, "refs/remotes/%s/origins" % remote)
-        self.index.read_tree(base, notes_ref, "refs/remotes/%s/origins" % remote,
+        base = self.repo.git.merge_base(notes_ref, remote_ref)
+        self.index.read_tree(base, notes_ref, remote_ref,
                              m=True, aggressive=True)
         self.index.checkout(self.wd, a=True, f=True)
-        try:
-            tree = self.index.write_tree()
-        except GitCommandError:
-            try:
-                self.index.merge_index("-o", "git-merge-one-file", "-a")
-            except GitCommandError, exc:
-                print >>stderr, exc.stderr
-                pass
+        self.index.merge_index("-o", "git-merge-origins-driver", "-a")
+        self._commit("Merge %s" % remote_ref, "-p", remote_ref)
 
-            print("Spawning shell to resolve conflicts.")
-            env = {
-                "GIT_WORK_TREE": self.wd,
-                "GIT_INDEX_FILE": self.index.path,
-            }
-            call(["sh"], env=env, pwd=self.wd)
-
-    def _commit(self, msg):
+    def _commit(self, msg, *commitargs):
         parent = _commit(self.repo, self.ref)
         newtreeid = self.index.write_tree()
-        newcommitid = self.repo.git.commit_tree(newtreeid, "-p", parent.id,
-                                                input=msg)
-        self.repo.git.update_ref(self.ref, newcommitid)
-        return self.repo.commit(newcommitid)
+        if newtreeid != parent.tree.id:
+            newcommitid = self.repo.git.commit_tree(newtreeid, "-p", parent.id,
+                                                    input=msg, *commitargs)
+            self.repo.git.update_ref(self.ref, newcommitid)
+            return self.repo.commit(newcommitid)
 
     def _checkout(self):
         self.index.read_tree(self.ref)
