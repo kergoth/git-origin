@@ -388,9 +388,6 @@ def file():
         print("%s %s" % (commit.direction, commit))
 
 
-def fetch():
-    raise NotImplementedError()
-
 def pull():
     remote = argv[1]
     repo = Repo()
