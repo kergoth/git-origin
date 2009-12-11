@@ -30,6 +30,7 @@ setup(name = "git-origin",
               "git-cherry-origins = git_origin.cmd:cherry",
               "git-file-origin = git_origin.cmd:file",
               "git-pull-origins = git_origin.cmd:pull",
+              "git-push-origins = git_origin.cmd:push",
           ],
       },
 )

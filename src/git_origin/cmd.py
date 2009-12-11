@@ -115,6 +115,9 @@ class Origins(object):
         self.index = Index(repo, join(repo.path, "origins-index"))
         self.ref = notes_ref
 
+    def push(self, remote):
+        self.repo.git.push(remote, notes_ref)
+
     def pull(self, remote):
         fetches = self.repo.git.config("remote.%s.fetch" % remote, get_all=True)
         refspec = "+refs/notes/origins:refs/remotes/%s/origins" % remote
@@ -396,3 +399,12 @@ def pull():
         origins.pull(remote)
     except GitCommandError, exc:
         exit("Unable to pull when executing %s:\n%s" % (exc.command, exc.stderr))
+
+def push():
+    remote = argv[1]
+    repo = Repo()
+    origins = Origins(repo)
+    try:
+        origins.push(remote)
+    except GitCommandError, exc:
+        exit("Unable to push when executing %s:\n%s" % (exc.command, exc.stderr))
